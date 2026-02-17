@@ -1,0 +1,16 @@
+{
+  "name": "realtime-chat",
+  "module": "index.ts",
+  "workspaces": ["packages/*"],
+  "private": true,
+  "scripts": {
+    "dev": "bun run --workspace dev",
+    "build": "bun run --workspace build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
