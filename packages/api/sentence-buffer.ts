@@ -1,3 +1,11 @@
+import { SEPARATOR } from "./elevenlabs-guide";
+
+export interface SentenceChunk {
+  text: string;
+  hasBreak: boolean;
+  breakTime?: string;
+}
+
 export interface SentenceEmitter {
   (text: string): void;
   getFullText(): string;
@@ -9,7 +17,12 @@ export class SentenceBuffer {
   private sentenceIndex: number = 0;
   private isComplete: boolean = false;
 
-  private static readonly SENTENCE_END_REGEX = /[.!?]+[\s]*|[\n]+/g;
+  private static readonly SEPARATOR_REGEX = new RegExp(
+    `\\s*${SEPARATOR}\\s*`,
+    "g"
+  );
+
+  private static readonly BREAK_REGEX = /<break\s+time="(\d+(?:\.\d+)?)s"\s*\/>/g;
 
   constructor(
     private onSentence: (sentence: string, isLast: boolean) => void
@@ -21,35 +34,48 @@ export class SentenceBuffer {
     this.processBuffer();
   }
 
+  private findSeparatorIndex(text: string): number {
+    const index = text.indexOf(SEPARATOR);
+    return index;
+  }
+
+  private parseChunk(text: string): SentenceChunk {
+    const trimmed = text.trim();
+    const breakMatch = trimmed.match(SentenceBuffer.BREAK_REGEX);
+    return {
+      text: trimmed,
+      hasBreak: breakMatch !== null,
+      breakTime: breakMatch?.[1],
+    };
+  }
+
   private processBuffer(): void {
-    const regex = new RegExp(SentenceBuffer.SENTENCE_END_REGEX.source, "g");
+    while (true) {
+      const unprocessedBuffer = this.buffer.slice(this.emittedLength);
+      const separatorIndex = this.findSeparatorIndex(unprocessedBuffer);
 
-    let match: RegExpExecArray | null;
-    const unprocessedBuffer = this.buffer.slice(this.emittedLength);
-    while ((match = regex.exec(unprocessedBuffer)) !== null) {
-      const endIndex = match.index + match[0].length;
-      const sentence = unprocessedBuffer.slice(0, endIndex).trim();
-
-      console.log("EmmitedLength:", this.emittedLength);
-      console.log("EndIndex:", endIndex);
-
-
-      if (sentence.length > 0) {
-        this.onSentence(sentence, false);
-        console.log("Emitting sentence:", sentence);
-        this.sentenceIndex++;
+      if (separatorIndex === -1) {
+        break;
       }
 
-      this.emittedLength += endIndex;
-      console.log("New EmittedLength:", this.emittedLength);
-      console.log("--------------------------------");
+      const textBeforeSeparator = unprocessedBuffer.slice(0, separatorIndex);
+      const chunk = this.parseChunk(textBeforeSeparator);
+
+      if (chunk.text.length > 0) {
+        this.onSentence(chunk.text, false);
+        this.sentenceIndex++;
+        console.log("Emitted sentence:", chunk.text);
+        console.log("--------------------------------");
+      }
+
+      this.emittedLength += separatorIndex + SEPARATOR.length;
     }
 
-    if (this.isComplete && this.emittedLength < this.buffer.length) {
+    if (this.isComplete) {
       const remaining = this.buffer.slice(this.emittedLength).trim();
       if (remaining.length > 0) {
-        console.log("Emitting final sentence:", remaining);
-        this.onSentence(remaining, true);
+        const chunk = this.parseChunk(remaining);
+        this.onSentence(chunk.text, true);
         this.sentenceIndex++;
       }
       this.emittedLength = this.buffer.length;
@@ -77,7 +103,9 @@ export class SentenceBuffer {
   }
 }
 
-export function createSentenceBuffer(onSentence: (sentence: string, isLast: boolean) => void) {
+export function createSentenceBuffer(
+  onSentence: (sentence: string, isLast: boolean) => void
+) {
   const buffer = new SentenceBuffer(onSentence);
 
   return {
@@ -92,6 +120,9 @@ export function createSentenceBuffer(onSentence: (sentence: string, isLast: bool
     },
     getBufferedText(): string {
       return buffer.getBufferedText();
+    },
+    getFullText(): string {
+      return buffer.getFullText();
     },
   };
 }
