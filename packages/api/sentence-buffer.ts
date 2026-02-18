@@ -25,25 +25,34 @@ export class SentenceBuffer {
     const regex = new RegExp(SentenceBuffer.SENTENCE_END_REGEX.source, "g");
 
     let match: RegExpExecArray | null;
-    while ((match = regex.exec(this.buffer)) !== null) {
+    const unprocessedBuffer = this.buffer.slice(this.emittedLength);
+    while ((match = regex.exec(unprocessedBuffer)) !== null) {
       const endIndex = match.index + match[0].length;
-      const sentence = this.buffer.slice(this.emittedLength, endIndex).trim();
+      const sentence = unprocessedBuffer.slice(0, endIndex).trim();
+
+      console.log("EmmitedLength:", this.emittedLength);
+      console.log("EndIndex:", endIndex);
+
 
       if (sentence.length > 0) {
         this.onSentence(sentence, false);
+        console.log("Emitting sentence:", sentence);
         this.sentenceIndex++;
       }
 
-      this.emittedLength = endIndex;
+      this.emittedLength += endIndex;
+      console.log("New EmittedLength:", this.emittedLength);
+      console.log("--------------------------------");
     }
 
     if (this.isComplete && this.emittedLength < this.buffer.length) {
       const remaining = this.buffer.slice(this.emittedLength).trim();
       if (remaining.length > 0) {
+        console.log("Emitting final sentence:", remaining);
         this.onSentence(remaining, true);
         this.sentenceIndex++;
-        this.emittedLength = this.buffer.length;
       }
+      this.emittedLength = this.buffer.length;
     }
   }
 

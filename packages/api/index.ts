@@ -69,7 +69,7 @@ const server = Bun.serve({
             },
             async onSentence(sentence, isLast) {
               if (!isGenerating) return;
-              console.log(`TTS for sentence ${sentenceIndex}: ${sentence}`);
+              // console.log(`TTS for sentence ${sentenceIndex}: ${sentence}`);
 
               // for await (const chunk of generateSpeech(sentence)) {
               //   // if (!isGenerating) return;
@@ -82,7 +82,7 @@ const server = Bun.serve({
             onComplete(fullText) {
               isGenerating = false;
               ws.send(serializeMessage({ type: "response-end", fullText }));
-              console.log(`Response complete for ${clientId}: ${fullText.substring(0, 50)}...`);
+              // console.log(`Response complete for ${clientId}: ${fullText.substring(0, 50)}...`);
             },
             onError(error) {
               isGenerating = false;
