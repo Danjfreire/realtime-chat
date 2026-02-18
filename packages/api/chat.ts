@@ -25,10 +25,10 @@ export interface ChatResponse {
 const structuredOutputSchema = {
   type: "object" as const,
   properties: {
-    text: { type: "string" as const },
     emotion: { type: "string" as const, enum: EMOTIONS },
+    text: { type: "string" as const },
   },
-  required: ["text", "emotion"],
+  required: ["emotion", "text"],
 };
 
 const messageHistoryMap: Map<string, ChatMessage[]> = new Map();

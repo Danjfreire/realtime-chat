@@ -71,10 +71,10 @@ const server = Bun.serve({
               if (!isGenerating) return;
               console.log(`TTS for sentence ${sentenceIndex}: ${sentence}`);
 
-              for await (const chunk of generateSpeech(sentence)) {
-                // if (!isGenerating) return;
-                ws.sendBinary(chunk);
-              }
+              // for await (const chunk of generateSpeech(sentence)) {
+              //   // if (!isGenerating) return;
+              //   ws.sendBinary(chunk);
+              // }
 
               ws.send(serializeMessage({ type: "audio-end", sentenceIndex }));
               sentenceIndex++;

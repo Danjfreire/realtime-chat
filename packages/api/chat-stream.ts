@@ -24,10 +24,10 @@ export interface StreamingCallbacks {
 const structuredOutputSchema = {
   type: "object" as const,
   properties: {
-    text: { type: "string" as const },
     emotion: { type: "string" as const, enum: EMOTIONS },
+    text: { type: "string" as const },
   },
-  required: ["text", "emotion"],
+  required: ["emotion", "text"],
 };
 
 const messageHistoryMap: Map<string, ChatMessage[]> = new Map();
@@ -173,12 +173,14 @@ export async function streamChat(
         try {
           const parsed = JSON.parse(data);
           const content = parsed.choices?.[0]?.delta?.content ?? "";
+          // console.log("Parsed content:", content);
 
           if (content) {
             fullText += content;
             callbacks.onTextChunk(content);
 
             const parsedText = extractTextFromPartialJson(fullText);
+            console.log("Parsed text:", parsedText);
             
             if (parsedText && parsedText !== lastParsedText) {
               const newContent = parsedText.slice(lastParsedText.length);

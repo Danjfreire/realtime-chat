@@ -3,55 +3,86 @@ export interface SentenceEmitter {
   getFullText(): string;
 }
 
-export function createSentenceBuffer(onSentence: (sentence: string, isLast: boolean) => void) {
-  let buffer = "";
-  let sentenceIndex = 0;
-  let isLast = false;
+export class SentenceBuffer {
+  private buffer: string = "";
+  private emittedLength: number = 0;
+  private sentenceIndex: number = 0;
+  private isComplete: boolean = false;
 
-  const SENTENCE_END_REGEX = /[.!?]\s*$/;
+  private static readonly SENTENCE_END_REGEX = /[.!?]+[\s]*|[\n]+/g;
 
-  function flush() {
-    if (buffer.length > 0) {
-      onSentence(buffer.trim(), isLast);
-      buffer = "";
-      sentenceIndex++;
+  constructor(
+    private onSentence: (sentence: string, isLast: boolean) => void
+  ) {}
+
+  feed(text: string, isComplete: boolean = false): void {
+    this.buffer += text;
+    this.isComplete = isComplete;
+    this.processBuffer();
+  }
+
+  private processBuffer(): void {
+    const regex = new RegExp(SentenceBuffer.SENTENCE_END_REGEX.source, "g");
+
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(this.buffer)) !== null) {
+      const endIndex = match.index + match[0].length;
+      const sentence = this.buffer.slice(this.emittedLength, endIndex).trim();
+
+      if (sentence.length > 0) {
+        this.onSentence(sentence, false);
+        this.sentenceIndex++;
+      }
+
+      this.emittedLength = endIndex;
+    }
+
+    if (this.isComplete && this.emittedLength < this.buffer.length) {
+      const remaining = this.buffer.slice(this.emittedLength).trim();
+      if (remaining.length > 0) {
+        this.onSentence(remaining, true);
+        this.sentenceIndex++;
+        this.emittedLength = this.buffer.length;
+      }
     }
   }
 
+  finalize(): void {
+    this.isComplete = true;
+    this.processBuffer();
+  }
+
+  reset(): void {
+    this.buffer = "";
+    this.emittedLength = 0;
+    this.sentenceIndex = 0;
+    this.isComplete = false;
+  }
+
+  getBufferedText(): string {
+    return this.buffer.slice(this.emittedLength);
+  }
+
+  getFullText(): string {
+    return this.buffer;
+  }
+}
+
+export function createSentenceBuffer(onSentence: (sentence: string, isLast: boolean) => void) {
+  const buffer = new SentenceBuffer(onSentence);
+
   return {
     feed(text: string, isComplete: boolean = false) {
-      buffer += text;
-      isLast = isComplete;
-
-      while (buffer.length > 0) {
-        const match = buffer.match(SENTENCE_END_REGEX);
-        if (match) {
-          const endIndex = match.index! + match[0].length;
-          const sentence = buffer.slice(0, endIndex).trim();
-          if (sentence.length > 0) {
-            onSentence(sentence, false);
-            sentenceIndex++;
-          }
-          buffer = buffer.slice(endIndex);
-        } else {
-          break;
-        }
-      }
-      
-      if (isComplete && buffer.length > 0) {
-        flush();
-      }
+      buffer.feed(text, isComplete);
     },
     finalize() {
-      isLast = true;
-      flush();
+      buffer.finalize();
     },
     reset() {
-      buffer = "";
-      sentenceIndex = 0;
+      buffer.reset();
     },
     getBufferedText(): string {
-      return buffer;
+      return buffer.getBufferedText();
     },
   };
 }
