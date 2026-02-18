@@ -37,61 +37,61 @@ A realtime chat application where users can converse with an AI assistant. When 
 
 ### Phase 1: Backend Setup
 
-- [ ] **1.1** Set up environment variables for API keys (`.env` file)
-  - [ ] Add `OPENROUTER_API_KEY` to api package
-  - [ ] Add `ELEVENLABS_API_KEY` to api package
+- [x] **1.1** Set up environment variables for API keys (`.env` file)
+  - [x] Add `OPENROUTER_API_KEY` to api package
+  - [x] Add `ELEVENLABS_API_KEY` to api package
 
-- [ ] **1.2** Create API endpoints in `packages/api/index.ts`
-  - [ ] POST `/api/chat` - Send user message, receive AI response
-  - [ ] WebSocket `/ws/audio` - Stream TTS audio to client
+- [x] **1.2** Create API endpoints in `packages/api/index.ts`
+  - [x] POST `/api/chat` - Send user message, receive AI response
+  - [x] WebSocket `/ws/audio` - Stream TTS audio to client
 
-- [ ] **1.3** Implement OpenRouter integration
-  - [ ] Create function to call OpenRouter API
-  - [ ] Select fast model (e.g., Qwen Q3, DeepSeek V3)
+- [x] **1.3** Implement OpenRouter integration
+  - [x] Create function to call OpenRouter API
+  - [x] Select fast model (e.g., Qwen Q3, DeepSeek V3)
   - [ ] Handle streaming response from LLM
 
-- [ ] **1.4** Implement ElevenLabs WebSocket integration
-  - [ ] Set up WebSocket connection to ElevenLabs
-  - [ ] Send text for TTS conversion
-  - [ ] Stream audio chunks back to client
+- [x] **1.4** Implement ElevenLabs WebSocket integration
+  - [x] Set up WebSocket connection to ElevenLabs
+  - [x] Send text for TTS conversion
+  - [x] Stream audio chunks back to client
 
 ### Phase 2: Frontend Setup
 
-- [ ] **2.1** Create chat UI components
-  - [ ] Message list component (display user/AI messages)
-  - [ ] Message input component (text input + send button)
-  - [ ] Audio status indicator (showing when AI is speaking)
+- [x] **2.1** Create chat UI components
+  - [x] Message list component (display user/AI messages)
+  - [x] Message input component (text input + send button)
+  - [x] Audio status indicator (showing when AI is speaking)
 
-- [ ] **2.2** Implement chat service
-  - [ ] Service to handle HTTP requests to backend
-  - [ ] State management for messages array
+- [x] **2.2** Implement chat service
+  - [x] Service to handle HTTP requests to backend
+  - [x] State management for messages array
 
-- [ ] **2.3** Implement WebSocket client for audio
-  - [ ] Connect to `/ws/audio` endpoint
-  - [ ] Receive audio chunks
-  - [ ] Play audio chunks progressively in browser
+- [x] **2.3** Implement WebSocket client for audio
+  - [x] Connect to `/ws/audio` endpoint
+  - [x] Receive audio chunks
+  - [x] Play audio chunks progressively in browser
 
-- [ ] **2.4** Add loading states
-  - [ ] Show "AI is thinking..." while generating response
-  - [ ] Show "Generating speech..." during TTS
-  - [ ] Show audio playback indicator
+- [x] **2.4** Add loading states
+  - [x] Show "AI is thinking..." while generating response
+  - [x] Show "Generating speech..." during TTS
+  - [x] Show audio playback indicator
 
 ### Phase 3: Integration & Polish
 
-- [ ] **3.1** Connect frontend to backend
-  - [ ] Send user message to `/api/chat`
-  - [ ] Display AI response in chat
-  - [ ] Trigger TTS automatically after response
+- [x] **3.1** Connect frontend to backend
+  - [x] Send user message to `/api/chat`
+  - [x] Display AI response in chat
+  - [x] Trigger TTS automatically after response
 
-- [ ] **3.2** Handle edge cases
-  - [ ] Handle API errors gracefully
-  - [ ] Handle WebSocket disconnection/reconnection
-  - [ ] Cancel previous audio when new message arrives
+- [x] **3.2** Handle edge cases
+  - [x] Handle API errors gracefully
+  - [x] Handle WebSocket disconnection/reconnection
+  - [x] Cancel previous audio when new message arrives
 
-- [ ] **3.3** Basic styling
-  - [ ] Chat message bubbles (user vs AI)
-  - [ ] Input area at bottom
-  - [ ] Responsive layout
+- [x] **3.3** Basic styling
+  - [x] Chat message bubbles (user vs AI)
+  - [x] Input area at bottom
+  - [x] Responsive layout
 
 ### Phase 4: Testing & Refinement
 
