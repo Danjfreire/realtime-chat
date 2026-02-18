@@ -1,6 +1,6 @@
-import { Component, inject, signal, ElementRef, viewChild, effect } from '@angular/core';
+import { Component, inject, signal, ElementRef, viewChild, effect, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ChatService, ChatMessage } from '../../services/chat.service';
+import { ChatService, type ChatMessage, type CharacterId } from '../../services/chat.service';
 import { AudioService } from '../../services/audio.service';
 
 @Component({
@@ -56,7 +56,7 @@ import { AudioService } from '../../services/audio.service';
   styles: [`
     :host {
       display: block;
-      height: 100vh;
+      height: 100%;
     }
   `]
 })
@@ -64,11 +64,13 @@ export class ChatComponent {
   readonly chatService = inject(ChatService);
   readonly audioService = inject(AudioService);
 
+  readonly characterId = input<CharacterId>('cheerful');
+
   readonly messages = signal<ChatMessage[]>([]);
   readonly userInput = signal('');
   readonly isThinking = signal(false);
   
-  readonly inputEl = viewChild<ElementRef<HTMLInputElement>>('inputEl');
+  readonly inputEl = viewChild<ElementRef>('inputEl');
 
   constructor() {
     effect(() => {
@@ -86,9 +88,14 @@ export class ChatComponent {
     this.userInput.set('');
     this.isThinking.set(true);
 
-    this.chatService.sendMessage(text).subscribe({
+    this.chatService.sendMessage(text, this.characterId()).subscribe({
       next: (response) => {
-        this.messages.update(msgs => [...msgs, { role: 'assistant', content: response.response }]);
+        this.messages.update(msgs => [...msgs, { 
+          role: 'assistant', 
+          content: response.response,
+          emotion: response.emotion 
+        }]);
+        this.chatService.currentEmotion.set(response.emotion);
         this.isThinking.set(false);
         
         this.audioService.sendText(response.response);

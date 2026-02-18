@@ -1,4 +1,6 @@
 import { OpenRouter } from "@openrouter/sdk";
+import { getCharacter, getDefaultCharacter, type CharacterId } from "./characters";
+import { type Emotion, isValidEmotion, EMOTIONS } from "./emotions";
 
 const openrouter = new OpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY ?? "",
@@ -11,35 +13,85 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   message: string;
+  characterId?: CharacterId;
 }
 
 export interface ChatResponse {
   response: string;
+  emotion: Emotion;
   done: boolean;
 }
 
-const messageHistory: ChatMessage[] = [
-  {
-    role: "system",
-    content:
-      "You are a helpful AI assistant. Keep your responses concise and conversational. Answer in the same language as the user's message. Prefer to use short answers. Do not include any other text than the answer. Avoid using emojis and markdown formatting.",
+const structuredOutputSchema = {
+  type: "object" as const,
+  properties: {
+    text: { type: "string" as const },
+    emotion: { type: "string" as const, enum: EMOTIONS },
   },
-];
+  required: ["text", "emotion"],
+};
+
+const messageHistoryMap: Map<string, ChatMessage[]> = new Map();
+
+function getMessageHistory(characterId: CharacterId): ChatMessage[] {
+  if (!messageHistoryMap.has(characterId)) {
+    const character = getCharacter(characterId);
+    messageHistoryMap.set(characterId, [
+      {
+        role: "system",
+        content: character.systemPrompt,
+      },
+    ]);
+  }
+  return messageHistoryMap.get(characterId)!;
+}
+
+function clearMessageHistory(characterId: CharacterId): void {
+  messageHistoryMap.delete(characterId);
+}
 
 export async function chat(request: ChatRequest): Promise<ChatResponse> {
+  const characterId = request.characterId ?? getDefaultCharacter().id;
+  const messageHistory = getMessageHistory(characterId);
+
   messageHistory.push({ role: "user", content: request.message });
 
   const result = await openrouter.callModel({
-    model: "deepseek/deepseek-chat",
+    model: "google/gemini-2.5-flash-lite",
     input: messageHistory,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "chat_response",
+        schema: structuredOutputSchema,
+      },
+    },
   });
 
-  const text = await result.getText();
+  const rawText = await result.getText();
   
-  messageHistory.push({ role: "assistant", content: text });
+  let parsed: { text: string; emotion: string };
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    parsed = { text: rawText, emotion: "neutral" };
+  }
+
+  const emotion: Emotion = isValidEmotion(parsed.emotion) ? parsed.emotion : "neutral";
+
+  messageHistory.push({ role: "assistant", content: parsed.text });
 
   return {
-    response: text,
+    response: parsed.text,
+    emotion,
     done: true,
   };
+}
+
+export function resetChat(characterId?: CharacterId): void {
+  if (characterId) {
+    clearMessageHistory(characterId);
+  } else {
+    messageHistoryMap.clear();
+  }
 }

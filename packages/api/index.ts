@@ -1,5 +1,4 @@
-import { chat } from "./chat";
-import type { ChatRequest } from "./chat";
+import { chat, type ChatRequest } from "./chat";
 import { generateSpeech } from "./tts";
 
 const server = Bun.serve({
