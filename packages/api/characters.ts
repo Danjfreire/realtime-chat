@@ -10,7 +10,7 @@ export interface Character {
 }
 
 const BASE_SYSTEM_PROMPT =
-  "Keep your responses concise and conversational. Answer in the same language as the user's message. Prefer short answers. Do not include markdown formatting or emojis.";
+  "Keep your responses VERY short and conversational - just 1-4 sentences maximum. Answer in the same language as the user's message. No markdown formatting or emojis.";
 
 export const characters: Character[] = [
   {

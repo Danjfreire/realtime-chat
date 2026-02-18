@@ -1,14 +1,17 @@
 import { generateSpeech } from "./tts";
 import { TTSQueue } from "./tts-queue";
 import { serializeMessage, deserializeClientMessage, type ServerMessage } from "./protocol";
-import { streamChat } from "./chat-stream";
+import { streamChat, resetChat } from "./chat-stream";
 import {
   createClientState,
   getClientState,
   removeClientState,
   setClientCharacter,
   abortClientStream,
+  markChatStarted,
+  resetChatState,
 } from "./client-state";
+import { initiateChat } from "./chat-init";
 import { getCharacter } from "./characters";
 import type { CharacterId } from "./characters";
 
@@ -45,9 +48,71 @@ const server = Bun.serve({
 
       if (clientMsg.type === "switch-character") {
         setClientCharacter(clientId, clientMsg.characterId);
+        resetChatState(clientId);
+        resetChat(clientMsg.characterId);
         const character = getCharacter(clientMsg.characterId);
         ws.send(serializeMessage({ type: "emotion", emotion: "neutral" }));
         console.log(`Client ${clientId} switched to character: ${character.name}`);
+        return;
+      }
+
+      if (clientMsg.type === "start-chat") {
+        if (state.chatStarted) {
+          ws.send(serializeMessage({ type: "error", message: "Chat already started" }));
+          return;
+        }
+
+        abortClientStream(clientId);
+        markChatStarted(clientId);
+        setClientCharacter(clientId, clientMsg.characterId);
+        resetChat(clientMsg.characterId);
+        
+        ws.send(serializeMessage({ type: "thinking" }));
+
+        let sentenceIndex = 0;
+
+        const ttsQueue = new TTSQueue({
+          onAudioChunk: (chunk) => {
+            ws.sendBinary(chunk);
+          },
+          onSentenceEnd: (idx) => {
+            ws.send(serializeMessage({ type: "audio-end", sentenceIndex: idx }));
+          },
+          onQueueEmpty: () => {
+            // All sentences processed
+          },
+          onError: (error) => {
+            ws.send(serializeMessage({ type: "error", message: error }));
+          },
+        });
+
+        try {
+          await initiateChat(clientMsg.characterId, {
+            onEmotion(emotion) {
+              ws.send(serializeMessage({ type: "emotion", emotion }));
+            },
+            onSentence(sentence, isLast) {
+              ttsQueue.enqueue(sentence, sentenceIndex);
+              sentenceIndex++;
+            },
+            onComplete(fullText) {
+              ttsQueue.complete();
+              ws.send(serializeMessage({ type: "response-end", fullText }));
+              ws.send(serializeMessage({ type: "chat-started" }));
+              console.log(`Chat started for client ${clientId} with topic`);
+            },
+            onError(error) {
+              ttsQueue.abort();
+              ws.send(serializeMessage({ type: "error", message: error }));
+              console.error(`Chat initiation error for ${clientId}: ${error}`);
+            },
+          });
+        } catch (error) {
+          ttsQueue.abort();
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          ws.send(serializeMessage({ type: "error", message: errorMsg }));
+          console.error(`Start chat error for ${clientId}: ${error}`);
+        }
         return;
       }
 

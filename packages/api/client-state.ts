@@ -5,8 +5,8 @@ import type { ClientMessage, ServerMessage } from "./protocol";
 export interface ClientState {
   id: string;
   characterId: CharacterId;
-  messageHistory: { role: "user" | "assistant" | "system"; content: string }[];
   abortController: AbortController | null;
+  chatStarted: boolean;
 }
 
 const clients = new Map<string, ClientState>();
@@ -15,8 +15,8 @@ export function createClientState(id: string): ClientState {
   const state: ClientState = {
     id,
     characterId: "cheerful",
-    messageHistory: [],
     abortController: null,
+    chatStarted: false,
   };
   clients.set(id, state);
   return state;
@@ -38,7 +38,6 @@ export function setClientCharacter(id: string, characterId: CharacterId): void {
   const state = clients.get(id);
   if (state) {
     state.characterId = characterId;
-    state.messageHistory = [];
   }
 }
 
@@ -47,5 +46,19 @@ export function abortClientStream(id: string): void {
   if (state?.abortController) {
     state.abortController.abort();
     state.abortController = null;
+  }
+}
+
+export function markChatStarted(id: string): void {
+  const state = clients.get(id);
+  if (state) {
+    state.chatStarted = true;
+  }
+}
+
+export function resetChatState(id: string): void {
+  const state = clients.get(id);
+  if (state) {
+    state.chatStarted = false;
   }
 }

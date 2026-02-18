@@ -6,7 +6,8 @@ export type { CharacterId } from './characters';
 
 export type ClientMessage =
   | { type: 'chat'; message: string; characterId: CharacterId }
-  | { type: 'switch-character'; characterId: CharacterId };
+  | { type: 'switch-character'; characterId: CharacterId }
+  | { type: 'start-chat'; characterId: CharacterId };
 
 export type ServerMessage =
   | { type: 'emotion'; emotion: Emotion }
@@ -15,7 +16,8 @@ export type ServerMessage =
   | { type: 'response-end'; fullText: string }
   | { type: 'error'; message: string }
   | { type: 'interrupt' }
-  | { type: 'thinking' };
+  | { type: 'thinking' }
+  | { type: 'chat-started' };
 
 export function serializeMessage(msg: ServerMessage): string {
   return JSON.stringify(msg);
@@ -26,7 +28,8 @@ export function deserializeClientMessage(data: string): ClientMessage | null {
     const parsed = JSON.parse(data);
     if (
       parsed.type === 'chat' ||
-      parsed.type === 'switch-character'
+      parsed.type === 'switch-character' ||
+      parsed.type === 'start-chat'
     ) {
       return parsed as ClientMessage;
     }
