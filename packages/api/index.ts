@@ -1,4 +1,5 @@
 import { generateSpeech } from "./tts";
+import { TTSQueue } from "./tts-queue";
 import { serializeMessage, deserializeClientMessage, type ServerMessage } from "./protocol";
 import { streamChat } from "./chat-stream";
 import {
@@ -57,41 +58,45 @@ const server = Bun.serve({
         ws.send(serializeMessage({ type: "thinking" }));
 
         let sentenceIndex = 0;
-        let isGenerating = true;
+
+        const ttsQueue = new TTSQueue({
+          onAudioChunk: (chunk) => {
+            ws.sendBinary(chunk);
+          },
+          onSentenceEnd: (idx) => {
+            ws.send(serializeMessage({ type: "audio-end", sentenceIndex: idx }));
+          },
+          onQueueEmpty: () => {
+            // All sentences processed
+          },
+          onError: (error) => {
+            ws.send(serializeMessage({ type: "error", message: error }));
+          },
+        });
 
         try {
           await streamChat(clientMsg.message, state.characterId, {
             onEmotion(emotion) {
-              if (!isGenerating) return;
               ws.send(serializeMessage({ type: "emotion", emotion }));
             },
             onTextChunk(_text) {
             },
-            async onSentence(sentence, isLast) {
-              if (!isGenerating) return;
-              // console.log(`TTS for sentence ${sentenceIndex}: ${sentence}`);
-
-              for await (const chunk of generateSpeech(sentence)) {
-                // if (!isGenerating) return;
-                ws.sendBinary(chunk);
-              }
-
-              ws.send(serializeMessage({ type: "audio-end", sentenceIndex }));
+            onSentence(sentence, isLast) {
+              ttsQueue.enqueue(sentence, sentenceIndex);
               sentenceIndex++;
             },
             onComplete(fullText) {
-              isGenerating = false;
+              ttsQueue.complete();
               ws.send(serializeMessage({ type: "response-end", fullText }));
-              // console.log(`Response complete for ${clientId}: ${fullText.substring(0, 50)}...`);
             },
             onError(error) {
-              isGenerating = false;
+              ttsQueue.abort();
               ws.send(serializeMessage({ type: "error", message: error }));
               console.error(`Chat error for ${clientId}: ${error}`);
             },
           });
         } catch (error) {
-          isGenerating = false;
+          ttsQueue.abort();
           const errorMsg = error instanceof Error ? error.message : "Unknown error";
           ws.send(serializeMessage({ type: "error", message: errorMsg }));
           console.error(`Stream error for ${clientId}: ${error}`);

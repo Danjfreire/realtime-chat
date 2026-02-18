@@ -16,6 +16,7 @@ export async function* generateSpeech(
     const audio = await elevenlabs.textToSpeech.convert("Xb7hH8MSUJpSbSDYk0k2", {
       text,
       model_id: "eleven_flash_v2_5",
+      output_format: "mp3_22050_32",
     });
 
     if (audio && typeof audio[Symbol.asyncIterator] === 'function') {
