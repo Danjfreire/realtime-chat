@@ -86,13 +86,24 @@ function extractTextFromPartialJson(jsonText: string): string | null {
   return null;
 }
 
+export interface ChatOptions {
+  guidancePrompt?: string;
+}
+
 export async function streamChat(
   message: string,
   characterId: CharacterId,
-  callbacks: StreamingCallbacks
+  callbacks: StreamingCallbacks,
+  options: ChatOptions = {}
 ): Promise<void> {
   const messageHistory = getMessageHistory(characterId);
   messageHistory.push({ role: "user", content: message });
+
+  // If a guidance prompt is provided, temporarily inject it as a system message
+  const messages = [...messageHistory];
+  if (options.guidancePrompt) {
+    messages.push({ role: "system", content: options.guidancePrompt });
+  }
 
   let fullText = "";
   let foundEmotion = false;
@@ -113,7 +124,7 @@ export async function streamChat(
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
-        messages: messageHistory,
+        messages: messages,
         stream: true,
         response_format: {
           type: "json_schema",

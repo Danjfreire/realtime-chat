@@ -17,7 +17,8 @@ export type ServerMessage =
   | { type: 'error'; message: string }
   | { type: 'interrupt' }
   | { type: 'thinking' }
-  | { type: 'chat-started' };
+  | { type: 'chat-started' }
+  | { type: 'chat-ended' };
 
 export function serializeMessage(msg: ServerMessage): string {
   return JSON.stringify(msg);

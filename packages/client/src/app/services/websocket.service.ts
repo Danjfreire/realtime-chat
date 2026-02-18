@@ -47,12 +47,12 @@ export const CHARACTERS: Character[] = [
 type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
 interface ServerMessage {
-  type: 'emotion' | 'audio-chunk' | 'audio-end' | 'response-end' | 'error' | 'interrupt' | 'thinking';
+  type: 'emotion' | 'audio-chunk' | 'audio-end' | 'response-end' | 'error' | 'interrupt' | 'thinking' | 'chat-started' | 'chat-ended';
   [key: string]: unknown;
 }
 
 interface ClientMessage {
-  type: 'chat' | 'switch-character';
+  type: 'chat' | 'switch-character' | 'start-chat';
   message?: string;
   characterId?: CharacterId;
 }
@@ -81,6 +81,14 @@ export class WebSocketService {
   readonly responseEnd$ = new Subject<string>();
   readonly error$ = new Subject<string>();
   readonly interrupt$ = new Subject<void>();
+  readonly chatStarted$ = new Subject<void>();
+  readonly chatEnded$ = new Subject<void>();
+
+  private readonly _chatStarted = signal(false);
+  readonly chatStarted = this._chatStarted.asReadonly();
+
+  private readonly _chatEnded = signal(false);
+  readonly chatEnded = this._chatEnded.asReadonly();
 
   constructor() {
     this.connect();
@@ -165,6 +173,14 @@ export class WebSocketService {
         case 'thinking':
           this._isThinking.set(true);
           break;
+        case 'chat-started':
+          this._chatStarted.set(true);
+          this.chatStarted$.next();
+          break;
+        case 'chat-ended':
+          this._chatEnded.set(true);
+          this.chatEnded$.next();
+          break;
       }
     } catch (e) {
       console.error('Failed to parse message:', e);
@@ -179,6 +195,20 @@ export class WebSocketService {
   switchCharacter(characterId: CharacterId): void {
     const msg: ClientMessage = { type: 'switch-character', characterId };
     this.send(msg);
+    this._chatStarted.set(false);
+    this._chatEnded.set(false);
+  }
+
+  startChat(characterId: CharacterId): void {
+    const msg: ClientMessage = { type: 'start-chat', characterId };
+    this._chatEnded.set(false);
+    this.send(msg);
+  }
+
+  restartChat(characterId: CharacterId): void {
+    this._chatStarted.set(false);
+    this._chatEnded.set(false);
+    this.startChat(characterId);
   }
 
   private send(msg: ClientMessage): void {

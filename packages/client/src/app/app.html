@@ -18,25 +18,63 @@
     </div>
     
     <div class="max-w-2xl mx-auto">
-      <div class="flex gap-2">
-        <input
-          #messageInputField
-          type="text"
-          [ngModel]="messageInput()"
-          (ngModelChange)="messageInput.set($event)"
-          (keydown)="onKeyDown($event)"
-          [disabled]="!isConnected()"
-          placeholder="Type a message..."
-          class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-        />
-        <button
-          (click)="sendMessage()"
-          [disabled]="!isConnected() || !messageInput().trim()"
-          class="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          Send
-        </button>
-      </div>
+      @if (chatFinished()) {
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-gray-600 text-center">
+            Conversation ended. Thanks for chatting!
+          </p>
+          <button
+            (click)="restartChat()"
+            [disabled]="!isConnected() || isThinking()"
+            class="px-8 py-4 bg-blue-500 text-white rounded-lg font-medium text-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-lg"
+          >
+            Start New Chat
+          </button>
+        </div>
+      } @else if (!chatStarted()) {
+        <div class="flex flex-col items-center gap-4">
+          <p class="text-gray-600 text-center">
+            Select a character above and click the button to start a conversation
+          </p>
+          <button
+            (click)="startChat()"
+            [disabled]="!isConnected() || isThinking()"
+            class="px-8 py-4 bg-blue-500 text-white rounded-lg font-medium text-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-lg"
+          >
+            @if (isThinking()) {
+              <span class="flex items-center gap-2">
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Starting...
+              </span>
+            } @else {
+              Start Conversation
+            }
+          </button>
+        </div>
+      } @else {
+        <div class="flex gap-2">
+          <input
+            #messageInputField
+            type="text"
+            [ngModel]="messageInput()"
+            (ngModelChange)="messageInput.set($event)"
+            (keydown)="onKeyDown($event)"
+            [disabled]="!isConnected() || wsService.chatEnded()"
+            placeholder="Type a message..."
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+          />
+          <button
+            (click)="sendMessage()"
+            [disabled]="!isConnected() || !messageInput().trim() || wsService.chatEnded()"
+            class="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Send
+          </button>
+        </div>
+      }
     </div>
   </div>
   

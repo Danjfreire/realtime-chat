@@ -7,6 +7,8 @@ export interface ClientState {
   characterId: CharacterId;
   abortController: AbortController | null;
   chatStarted: boolean;
+  messageCount: number;
+  isEnding: boolean;
 }
 
 const clients = new Map<string, ClientState>();
@@ -17,6 +19,8 @@ export function createClientState(id: string): ClientState {
     characterId: "cheerful",
     abortController: null,
     chatStarted: false,
+    messageCount: 0,
+    isEnding: false,
   };
   clients.set(id, state);
   return state;
@@ -60,5 +64,31 @@ export function resetChatState(id: string): void {
   const state = clients.get(id);
   if (state) {
     state.chatStarted = false;
+    state.messageCount = 0;
+    state.isEnding = false;
   }
+}
+
+export function incrementMessageCount(id: string): number {
+  const state = clients.get(id);
+  if (state) {
+    state.messageCount++;
+    return state.messageCount;
+  }
+  return 0;
+}
+
+export function getMessageCount(id: string): number {
+  return clients.get(id)?.messageCount ?? 0;
+}
+
+export function setIsEnding(id: string, isEnding: boolean): void {
+  const state = clients.get(id);
+  if (state) {
+    state.isEnding = isEnding;
+  }
+}
+
+export function getIsEnding(id: string): boolean {
+  return clients.get(id)?.isEnding ?? false;
 }

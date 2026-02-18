@@ -10,10 +10,20 @@ import {
   abortClientStream,
   markChatStarted,
   resetChatState,
+  incrementMessageCount,
+  setIsEnding,
+  getMessageCount,
+  getIsEnding,
 } from "./client-state";
 import { initiateChat } from "./chat-init";
 import { getCharacter } from "./characters";
 import type { CharacterId } from "./characters";
+import {
+  WRAP_UP_THRESHOLD,
+  GOODBYE_THRESHOLD,
+  WRAP_UP_PROMPT,
+  GOODBYE_PROMPT,
+} from "./chat-config";
 
 const server = Bun.serve({
   routes: {
@@ -63,6 +73,7 @@ const server = Bun.serve({
         }
 
         abortClientStream(clientId);
+        resetChatState(clientId); // Reset message count and ending state
         markChatStarted(clientId);
         setClientCharacter(clientId, clientMsg.characterId);
         resetChat(clientMsg.characterId);
@@ -117,12 +128,32 @@ const server = Bun.serve({
       }
 
       if (clientMsg.type === "chat") {
+        // Check if chat has already ended
+        if (getIsEnding(clientId)) {
+          ws.send(serializeMessage({ type: "error", message: "Chat has ended. Please start a new chat." }));
+          return;
+        }
+
         abortClientStream(clientId);
+
+        // Increment message count and determine guidance prompt
+        const messageCount = incrementMessageCount(clientId);
+        let guidancePrompt: string | undefined;
+
+        if (messageCount >= GOODBYE_THRESHOLD) {
+          // This is the final message - set ending flag and use goodbye prompt
+          setIsEnding(clientId, true);
+          guidancePrompt = GOODBYE_PROMPT;
+        } else if (messageCount >= WRAP_UP_THRESHOLD) {
+          // Start wrapping up the conversation
+          guidancePrompt = WRAP_UP_PROMPT;
+        }
 
         const character = getCharacter(state.characterId);
         ws.send(serializeMessage({ type: "thinking" }));
 
         let sentenceIndex = 0;
+        const isEndingChat = getIsEnding(clientId);
 
         const ttsQueue = new TTSQueue({
           onAudioChunk: (chunk) => {
@@ -132,7 +163,11 @@ const server = Bun.serve({
             ws.send(serializeMessage({ type: "audio-end", sentenceIndex: idx }));
           },
           onQueueEmpty: () => {
-            // All sentences processed
+            // All sentences processed - if this was the ending message, send chat-ended
+            if (isEndingChat) {
+              ws.send(serializeMessage({ type: "chat-ended" }));
+              console.log(`Chat ended for client ${clientId} after ${messageCount} messages`);
+            }
           },
           onError: (error) => {
             ws.send(serializeMessage({ type: "error", message: error }));
@@ -159,7 +194,7 @@ const server = Bun.serve({
               ws.send(serializeMessage({ type: "error", message: error }));
               console.error(`Chat error for ${clientId}: ${error}`);
             },
-          });
+          }, { guidancePrompt });
         } catch (error) {
           ttsQueue.abort();
           const errorMsg = error instanceof Error ? error.message : "Unknown error";
