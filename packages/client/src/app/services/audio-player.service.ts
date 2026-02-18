@@ -1,10 +1,15 @@
 import { Injectable, signal } from '@angular/core';
 import { WebSocketService } from './websocket.service';
 
+interface AudioSegment {
+  chunks: Uint8Array[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AudioPlayerService {
   private audioContext: AudioContext | null = null;
   private currentChunks: Uint8Array[] = [];
+  private audioQueue: AudioSegment[] = [];
   private currentSource: AudioBufferSourceNode | null = null;
   private isPlaying = false;
 
@@ -20,7 +25,15 @@ export class AudioPlayerService {
     });
 
     this.wsService.audioEnd$.subscribe(() => {
-      this.playCurrentAudio();
+      // Small delay to ensure last chunk is received (race condition fix)
+      setTimeout(() => {
+        // Add completed segment to queue
+        if (this.currentChunks.length > 0) {
+          this.audioQueue.push({ chunks: [...this.currentChunks] });
+          this.currentChunks = [];
+        }
+        this.playNext();
+      }, 50);
     });
 
     this.wsService.interrupt$.subscribe(() => {
@@ -28,40 +41,30 @@ export class AudioPlayerService {
     });
   }
 
-  private async playCurrentAudio(): Promise<void> {
-    if (this.currentChunks.length === 0) return;
+  private async playNext(): Promise<void> {
     if (this.isPlaying) return;
+    if (this.audioQueue.length === 0) return;
 
     this.isPlaying = true;
     this.isPlayingSignal.set(true);
-
-    if (this.currentSource) {
-      try {
-        this.currentSource.stop();
-      } catch {}
-      this.currentSource.disconnect();
-    }
 
     if (!this.audioContext) {
       this.audioContext = new AudioContext();
     }
 
+    const segment = this.audioQueue.shift()!;
+
     try {
-      const totalBytes = this.currentChunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      const totalBytes = segment.chunks.reduce((acc, chunk) => acc + chunk.length, 0);
       const combined = new Uint8Array(totalBytes);
       let offset = 0;
-      for (const chunk of this.currentChunks) {
+      for (const chunk of segment.chunks) {
         combined.set(chunk, offset);
         offset += chunk.length;
       }
 
-      console.log('First bytes:', Array.from(combined.slice(0, 20)));
-      console.log('Total bytes:', totalBytes);
-
       const arrayBuffer = combined.buffer.slice(0);
       const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-
-      console.log('Decoded successfully, duration:', audioBuffer.duration);
 
       this.currentSource = this.audioContext.createBufferSource();
       this.currentSource.buffer = audioBuffer;
@@ -70,14 +73,17 @@ export class AudioPlayerService {
       this.currentSource.onended = () => {
         this.isPlaying = false;
         this.isPlayingSignal.set(false);
+        // Play next segment after this one finishes
+        this.playNext();
       };
 
       this.currentSource.start(0);
-      this.currentChunks = [];
     } catch (e) {
       console.error('Failed to play audio:', e);
       this.isPlaying = false;
       this.isPlayingSignal.set(false);
+      // Try next segment even if this one failed
+      this.playNext();
     }
   }
 
@@ -91,6 +97,7 @@ export class AudioPlayerService {
     }
 
     this.currentChunks = [];
+    this.audioQueue = [];
     this.isPlaying = false;
     this.isPlayingSignal.set(false);
   }
