@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "realtime-chat-api",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -12,5 +12,9 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^0.8.0",
+    "elevenlabs": "^1.59.0"
   }
 }
